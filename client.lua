@@ -185,30 +185,124 @@ RegisterNetEvent('djonstnix-vehiclegiver:client:OpenMenu', function()
     TriggerEvent('djonstnix-vehiclegiver:client:InputModel')
 end)
 
-RegisterNetEvent('djonstnix-vehiclegiver:client:InputModel', function()
-    local inputModel = nil
-    local inputTarget = nil
-    
+local function OpenCategoryMenu(targetId)
+    Core.Functions.TriggerCallback('djonstnix-vehiclegiver:server:GetVehicleList', function(vehicles)
+        if not vehicles or next(vehicles) == nil then
+            Core.Notify(0, "No vehicles found in database/shared.", "error")
+            return
+        end
+
+        local options = {}
+        local categories = {}
+        for cat, _ in pairs(vehicles) do table.insert(categories, cat) end
+        table.sort(categories)
+
+        if Config.UseOxLib then
+            for _, cat in ipairs(categories) do
+                table.insert(options, {
+                    title = cat,
+                    onSelect = function()
+                        TriggerEvent('djonstnix-vehiclegiver:client:BrowseVehicles', { 
+                            category = cat, 
+                            targetId = targetId,
+                            vehicleList = vehicles[cat] -- Pass the specific list
+                        })
+                    end
+                })
+            end
+            lib.registerContext({
+                id = 'vehicle_category_menu',
+                title = 'Select Category',
+                menu = 'vehicle_setup_menu',
+                options = options
+            })
+            lib.showContext('vehicle_category_menu')
+        else
+            table.insert(options, { header = "Select Category", isMenuHeader = true })
+            for _, cat in ipairs(categories) do
+                table.insert(options, {
+                    header = cat,
+                    params = {
+                        event = "djonstnix-vehiclegiver:client:BrowseVehicles",
+                        args = { 
+                            category = cat, 
+                            targetId = targetId,
+                            vehicleList = vehicles[cat]
+                        }
+                    }
+                })
+            end
+            exports['qb-menu']:openMenu(options)
+        end
+    end)
+end
+
+RegisterNetEvent('djonstnix-vehiclegiver:client:BrowseVehicles', function(data)
+    local cat = data.category
+    local targetId = data.targetId
+    local vehicles = data.vehicleList
+    local options = {}
+
     if Config.UseOxLib then
-        local dialog = lib.inputDialog('Vehicle & Target Setup', {
-            {type = 'input', label = 'Model Name (e.g. sultan)', required = true},
+        for _, veh in ipairs(vehicles) do
+            table.insert(options, {
+                title = veh.label,
+                description = "Model: " .. veh.model,
+                onSelect = function()
+                    vehicleData.model = veh.model
+                    vehicleData.targetId = targetId
+                    local success = SpawnPreviewVehicle(veh.model)
+                    if success then OpenCustomizationMenu() end
+                end
+            })
+        end
+        lib.registerContext({
+            id = 'vehicle_selection_menu',
+            title = 'Browse: ' .. cat,
+            menu = 'vehicle_category_menu',
+            options = options
+        })
+        lib.showContext('vehicle_selection_menu')
+    else
+        table.insert(options, { header = "Browse: " .. cat, isMenuHeader = true })
+        for _, veh in ipairs(vehicles) do
+            table.insert(options, {
+                header = veh.label,
+                txt = "Model: " .. veh.model,
+                params = {
+                    isServer = false,
+                    event = "djonstnix-vehiclegiver:client:SelectBrowsedVehicle",
+                    args = { model = veh.model, targetId = targetId }
+                }
+            })
+        end
+        exports['qb-menu']:openMenu(options)
+    end
+end)
+
+RegisterNetEvent('djonstnix-vehiclegiver:client:SelectBrowsedVehicle', function(data)
+    vehicleData.model = data.model
+    vehicleData.targetId = data.targetId
+    local success = SpawnPreviewVehicle(data.model)
+    if success then OpenCustomizationMenu() end
+end)
+
+RegisterNetEvent('djonstnix-vehiclegiver:client:InputModel', function()
+    local targetId = nil
+    
+    -- First, get the Target ID
+    if Config.UseOxLib then
+        local dialog = lib.inputDialog('Target Setup', {
             {type = 'number', label = 'Target Server ID', required = true}
         })
-        if dialog and dialog[1] and dialog[2] then 
-            inputModel = dialog[1] 
-            inputTarget = tonumber(dialog[2])
+        if dialog and dialog[1] then 
+            targetId = tonumber(dialog[1])
         end
     else
         local dialog = exports['qb-input']:ShowInput({
-            header = "Vehicle & Target Setup",
-            submitText = "Spawn Preview",
+            header = "Target Setup",
+            submitText = "Continue",
             inputs = {
-                {
-                    text = "Model Name (e.g. sultan)",
-                    name = "model",
-                    type = "text",
-                    isRequired = true
-                },
                 {
                     text = "Target Server ID",
                     name = "targetId",
@@ -217,25 +311,90 @@ RegisterNetEvent('djonstnix-vehiclegiver:client:InputModel', function()
                 }
             }
         })
-        if dialog and dialog.model and dialog.targetId then 
-            inputModel = dialog.model 
-            inputTarget = tonumber(dialog.targetId)
+        if dialog and dialog.targetId then 
+            targetId = tonumber(dialog.targetId)
         end
     end
 
-    if inputModel and inputTarget then
-        local model = inputModel:lower()
-        vehicleData.model = model
-        vehicleData.targetId = inputTarget
-        local success = SpawnPreviewVehicle(model)
-        if success then
-            OpenCustomizationMenu()
-        else
-            CleanupPreview()
-        end
+    if not targetId then CleanupPreview() return end
+
+    -- Now ask how they want to select the vehicle
+    if Config.UseOxLib then
+        lib.registerContext({
+            id = 'vehicle_setup_menu',
+            title = 'Vehicle Selection',
+            options = {
+                {
+                    title = 'Manual Input',
+                    description = 'Type the model name manually',
+                    onSelect = function()
+                        local dialog = lib.inputDialog('Manual Input', {
+                            {type = 'input', label = 'Model Name', required = true}
+                        })
+                        if dialog and dialog[1] then
+                            vehicleData.model = dialog[1]:lower()
+                            vehicleData.targetId = targetId
+                            if SpawnPreviewVehicle(vehicleData.model) then OpenCustomizationMenu() end
+                        end
+                    end
+                },
+                {
+                    title = 'Browse Categories',
+                    description = 'Select from pre-configured list',
+                    onSelect = function()
+                        OpenCategoryMenu(targetId)
+                    end
+                }
+            }
+        })
+        lib.showContext('vehicle_setup_menu')
     else
-        CleanupPreview()
+        local menu = {
+            { header = "Vehicle Selection", isMenuHeader = true },
+            {
+                header = "Manual Input",
+                txt = "Type the model name manually",
+                params = {
+                    event = "djonstnix-vehiclegiver:client:ManualInput",
+                    args = { targetId = targetId }
+                }
+            },
+            {
+                header = "Browse Categories",
+                txt = "Select from pre-configured list",
+                params = {
+                    event = "djonstnix-vehiclegiver:client:BrowseCategories",
+                    args = { targetId = targetId }
+                }
+            }
+        }
+        exports['qb-menu']:openMenu(menu)
     end
+end)
+
+RegisterNetEvent('djonstnix-vehiclegiver:client:ManualInput', function(data)
+    local targetId = data.targetId
+    local dialog = exports['qb-input']:ShowInput({
+        header = "Manual Input",
+        submitText = "Spawn Preview",
+        inputs = {
+            {
+                text = "Model Name",
+                name = "model",
+                type = "text",
+                isRequired = true
+            }
+        }
+    })
+    if dialog and dialog.model then
+        vehicleData.model = dialog.model:lower()
+        vehicleData.targetId = targetId
+        if SpawnPreviewVehicle(vehicleData.model) then OpenCustomizationMenu() end
+    end
+end)
+
+RegisterNetEvent('djonstnix-vehiclegiver:client:BrowseCategories', function(data)
+    OpenCategoryMenu(data.targetId)
 end)
 
 RegisterNetEvent('djonstnix-vehiclegiver:client:InputColor', function(data)

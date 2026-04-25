@@ -22,4 +22,6 @@ Config.UseOxLib = true -- Set to true if you prefer ox_lib for UI, otherwise use
 -- ESX (Wasabi): "wasabi_carlock:giveKey"
 Config.GiveKeysEvent = "vehiclekeys:client:SetOwner" 
 
+-- Note: Vehicle list is now dynamically fetched from your database/shared vehicles!
+
 
