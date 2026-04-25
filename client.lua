@@ -7,7 +7,17 @@ local vehicleData = {
     targetId = nil,
     primary = 0,
     secondary = 0,
-    plate = ""
+    plate = "",
+    plateIndex = 0
+}
+
+local PlateTypes = {
+    [0] = "Blue on White 1",
+    [1] = "Yellow on Black",
+    [2] = "Gold on Blue",
+    [3] = "Blue on White 2",
+    [4] = "Blue on White 3",
+    [5] = "North Yankton"
 }
 
 -- Utilities
@@ -53,6 +63,7 @@ local function SpawnPreviewVehicle(modelName)
     FreezeEntityPosition(previewVehicle, true)
     SetVehicleColours(previewVehicle, vehicleData.primary, vehicleData.secondary)
     SetVehicleNumberPlateText(previewVehicle, vehicleData.plate)
+    SetVehicleNumberPlateTextIndex(previewVehicle, vehicleData.plateIndex)
     SetVehicleDirtLevel(previewVehicle, 0.0)
 
     SetModelAsNoLongerNeeded(hash)
@@ -95,6 +106,13 @@ local function OpenCustomizationMenu()
                     description = 'Current: ' .. (vehicleData.plate == "" and "NONE" or vehicleData.plate),
                     onSelect = function()
                         TriggerEvent('djonstnix-vehiclegiver:client:InputPlate')
+                    end
+                },
+                {
+                    title = 'Plate Type',
+                    description = 'Current: ' .. (PlateTypes[vehicleData.plateIndex] or "Blue on White 1"),
+                    onSelect = function()
+                        TriggerEvent('djonstnix-vehiclegiver:client:InputPlateType')
                     end
                 },
                 {
@@ -153,6 +171,13 @@ local function OpenCustomizationMenu()
             }
         },
         {
+            header = "Plate Type",
+            txt = "Current: " .. (PlateTypes[vehicleData.plateIndex] or "Blue on White 1"),
+            params = {
+                event = "djonstnix-vehiclegiver:client:InputPlateType"
+            }
+        },
+        {
             header = "Change Vehicle Model",
             txt = "Current: " .. string.upper(vehicleData.model),
             params = {
@@ -181,7 +206,7 @@ end
 -- Events
 RegisterNetEvent('djonstnix-vehiclegiver:client:OpenMenu', function()
     -- Reset default state
-    vehicleData = { model = "", targetId = nil, primary = 0, secondary = 0, plate = "" }
+    vehicleData = { model = "", targetId = nil, primary = 0, secondary = 0, plate = "", plateIndex = 0 }
     TriggerEvent('djonstnix-vehiclegiver:client:InputModel')
 end)
 
@@ -487,6 +512,57 @@ RegisterNetEvent('djonstnix-vehiclegiver:client:InputPlate', function()
     OpenCustomizationMenu()
 end)
 
+RegisterNetEvent('djonstnix-vehiclegiver:client:InputPlateType', function()
+    if Config.UseOxLib then
+        local options = {}
+        for i = 0, 5 do
+            local isSelected = (vehicleData.plateIndex == i) and " ✓" or ""
+            table.insert(options, {
+                title = PlateTypes[i] .. isSelected,
+                description = "Plate Index: " .. i,
+                onSelect = function()
+                    vehicleData.plateIndex = i
+                    if DoesEntityExist(previewVehicle) then
+                        SetVehicleNumberPlateTextIndex(previewVehicle, i)
+                    end
+                    OpenCustomizationMenu()
+                end
+            })
+        end
+        lib.registerContext({
+            id = 'plate_type_menu',
+            title = 'Select Plate Type',
+            menu = 'vehicle_builder_menu',
+            options = options
+        })
+        lib.showContext('plate_type_menu')
+    else
+        local menu = {
+            { header = "Select Plate Type", isMenuHeader = true }
+        }
+        for i = 0, 5 do
+            local isSelected = (vehicleData.plateIndex == i) and " ✓" or ""
+            table.insert(menu, {
+                header = PlateTypes[i] .. isSelected,
+                txt = "Plate Index: " .. i,
+                params = {
+                    event = "djonstnix-vehiclegiver:client:SetPlateType",
+                    args = { index = i }
+                }
+            })
+        end
+        exports['qb-menu']:openMenu(menu)
+    end
+end)
+
+RegisterNetEvent('djonstnix-vehiclegiver:client:SetPlateType', function(data)
+    vehicleData.plateIndex = data.index
+    if DoesEntityExist(previewVehicle) then
+        SetVehicleNumberPlateTextIndex(previewVehicle, data.index)
+    end
+    OpenCustomizationMenu()
+end)
+
 RegisterNetEvent('djonstnix-vehiclegiver:client:ConfirmSpawn', function()
     if not DoesEntityExist(previewVehicle) then
         Core.Notify("Preview vehicle does not exist. Cannot confirm.", "error")
@@ -513,6 +589,7 @@ RegisterNetEvent('djonstnix-vehiclegiver:client:ConfirmSpawn', function()
         primary = vehicleData.primary,
         secondary = vehicleData.secondary,
         plate = vehicleData.plate,
+        plateIndex = vehicleData.plateIndex,
         coords = vector4(finalCoords.x, finalCoords.y, finalCoords.z, finalHeading)
     }
 
@@ -528,7 +605,7 @@ RegisterNetEvent('djonstnix-vehiclegiver:client:CancelBuilder', function()
 end)
 
 -- Fired on the TARGET player's client to seat them and give them keys
-RegisterNetEvent('djonstnix-vehiclegiver:client:FinalizeSpawn', function(netId, plateExtracted, primary, secondary)
+RegisterNetEvent('djonstnix-vehiclegiver:client:FinalizeSpawn', function(netId, plateExtracted, primary, secondary, plateIndex)
     local ped = PlayerPedId()
     
     if NetworkDoesNetworkIdExist(netId) then
@@ -543,6 +620,7 @@ RegisterNetEvent('djonstnix-vehiclegiver:client:FinalizeSpawn', function(netId, 
         end
 
         SetVehicleNumberPlateText(veh, plateExtracted)
+        SetVehicleNumberPlateTextIndex(veh, plateIndex or 0)
         SetVehicleColours(veh, primary, secondary)
         SetVehicleEngineOn(veh, true, true, false)
         

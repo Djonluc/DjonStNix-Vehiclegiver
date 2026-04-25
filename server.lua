@@ -124,6 +124,8 @@ RegisterNetEvent('djonstnix-vehiclegiver:server:ConfirmSpawn', function(data)
     -- Extract & Secure Plate
     local rawPlate = type(data.plate) == "string" and data.plate or "BUILT"
     local uniquePlate = GenerateUniquePlate(rawPlate)
+    local plateIndex = tonumber(data.plateIndex) or 0
+    if plateIndex < 0 or plateIndex > 5 then plateIndex = 0 end
 
     local hash = GetHashKey(model)
     local coords = data.coords
@@ -134,7 +136,8 @@ RegisterNetEvent('djonstnix-vehiclegiver:server:ConfirmSpawn', function(data)
     local modsData = {
         color1 = primaryColor,
         color2 = secondaryColor,
-        plate = uniquePlate
+        plate = uniquePlate,
+        plateIndex = plateIndex
     }
 
     -- Log before logic insertion
@@ -160,6 +163,7 @@ RegisterNetEvent('djonstnix-vehiclegiver:server:ConfirmSpawn', function(data)
         local vehicleProps = {
             model = model,
             plate = uniquePlate,
+            plateIndex = plateIndex,
             color1 = primaryColor,
             color2 = secondaryColor,
             engineHealth = 1000.0,
@@ -221,8 +225,8 @@ RegisterNetEvent('djonstnix-vehiclegiver:server:ConfirmSpawn', function(data)
         -- Notify admin of success
         Core.Notify(src, ("Vehicle '%s' given to %s!"):format(model, targetName), "success")
 
-        -- Fire FinalizeSpawn on the TARGET player's client, passing colors so vehicleData isn't needed
-        TriggerClientEvent('djonstnix-vehiclegiver:client:FinalizeSpawn', targetId, netId, uniquePlate, primaryColor, secondaryColor)
+        -- Fire FinalizeSpawn on the TARGET player's client, passing colors and plate index
+        TriggerClientEvent('djonstnix-vehiclegiver:client:FinalizeSpawn', targetId, netId, uniquePlate, primaryColor, secondaryColor, plateIndex)
     else
         Core.Notify(src, "Server failed to save the vehicle to the database.", "error")
         print("[DjonStNix-Vehiclegiver] CRITICAL ERROR: Unable to save vehicle to database table.")
