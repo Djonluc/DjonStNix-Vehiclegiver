@@ -1,14 +1,55 @@
 local Core = exports['DjonStNix-Bridge']:GetCore()
+local AuthorizedPlayers = {} -- Temporary in-game authorizations
 
--- Execute Admin Command to trigger Client Menu
+-- Main Builder Command
 RegisterCommand(Config.CommandName, function(source, args)
-    if source ~= 0 then
-        if not Core.Player.IsAdmin(source) then
-            Core.Notify(source, "Unauthorized attempt to open vehicle builder.", "error")
-            return
+    local isAuthorized = false
+    if source == 0 then 
+        isAuthorized = true 
+    else
+        local identifier = Core.Player.GetIdentifier(source)
+        if Core.Player.IsAdmin(source) or AuthorizedPlayers[identifier] then
+            isAuthorized = true
         end
     end
+
+    if not isAuthorized then
+        Core.Notify(source, "You do not have access to the vehicle builder.", "error")
+        return
+    end
+
     TriggerClientEvent("djonstnix-vehiclegiver:client:OpenMenu", source)
+end, false)
+
+-- Grant/Revoke Access in-game
+RegisterCommand("gva", function(source, args)
+    if source ~= 0 and not Core.Player.IsAdmin(source) then
+        Core.Notify(source, "Only admins can manage gv access.", "error")
+        return
+    end
+
+    local targetId = tonumber(args[1])
+    if not targetId then
+        Core.Notify(source, "Usage: /gvauth [ID]", "primary")
+        return
+    end
+
+    local Target = Core.Player.GetPlayer(targetId)
+    if not Target then
+        Core.Notify(source, "Player not found.", "error")
+        return
+    end
+
+    local identifier = Core.Player.GetIdentifier(targetId)
+    if AuthorizedPlayers[identifier] then
+        AuthorizedPlayers[identifier] = nil
+        Core.Notify(source, ("Revoked gv access from %s"):format(GetPlayerName(targetId)), "error")
+        Core.Notify(targetId, "Your vehicle builder access has been revoked.", "error")
+    else
+        AuthorizedPlayers[identifier] = true
+        Core.Notify(source, ("Granted gv access to %s"):format(GetPlayerName(targetId)), "success")
+        Core.Notify(targetId, "You have been granted access to the vehicle builder! Use /" .. Config.CommandName, "success")
+    end
 end, false)
 
 -- Helper to safely clone table without ref

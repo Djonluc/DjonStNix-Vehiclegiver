@@ -9,7 +9,7 @@ Config = {}
 
 -- General Settings
 Config.EnableLogs = true -- Enable server-side console logging for vehicle creations
-Config.CommandName = "givevehicle"
+Config.CommandName = "gv"
 Config.AdminGroup = "admin" -- Group required to use the command (Supports QB/ESX via Bridge)
 Config.DefaultGarage = "pillboxgarage" -- Default garage (QBCore) or stored state (ESX)
 
