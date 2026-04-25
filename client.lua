@@ -186,7 +186,9 @@ RegisterNetEvent('djonstnix-vehiclegiver:client:OpenMenu', function()
 end)
 
 local function OpenCategoryMenu(targetId)
+    print("[DjonStNix-Vehiclegiver] Triggering server callback: GetVehicleList")
     Core.Functions.TriggerCallback('djonstnix-vehiclegiver:server:GetVehicleList', function(vehicles)
+        print("[DjonStNix-Vehiclegiver] Received vehicle list from server")
         if not vehicles or next(vehicles) == nil then
             Core.Notify(0, "No vehicles found in database/shared.", "error")
             return
@@ -214,6 +216,7 @@ local function OpenCategoryMenu(targetId)
                 id = 'vehicle_category_menu',
                 title = 'Select Category',
                 menu = 'vehicle_setup_menu',
+                onExit = function() CleanupPreview() end,
                 options = options
             })
             lib.showContext('vehicle_category_menu')
@@ -260,6 +263,7 @@ RegisterNetEvent('djonstnix-vehiclegiver:client:BrowseVehicles', function(data)
             id = 'vehicle_selection_menu',
             title = 'Browse: ' .. cat,
             menu = 'vehicle_category_menu',
+            onExit = function() CleanupPreview() end,
             options = options
         })
         lib.showContext('vehicle_selection_menu')
@@ -323,6 +327,7 @@ RegisterNetEvent('djonstnix-vehiclegiver:client:InputModel', function()
         lib.registerContext({
             id = 'vehicle_setup_menu',
             title = 'Vehicle Selection',
+            onExit = function() CleanupPreview() end,
             options = {
                 {
                     title = 'Manual Input',

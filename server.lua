@@ -207,3 +207,43 @@ RegisterNetEvent('djonstnix-vehiclegiver:server:ConfirmSpawn', function(data)
         print("[DjonStNix-Vehiclegiver] CRITICAL ERROR: Unable to save vehicle to database table.")
     end
 end)
+
+-- Fetch categorized vehicle list from DB/Framework
+Core.Functions.CreateCallback('djonstnix-vehiclegiver:server:GetVehicleList', function(source, cb)
+    print("[DjonStNix-Vehiclegiver] Server received request for vehicle list from ID: " .. source)
+    local framework = exports['DjonStNix-Bridge']:GetFramework()
+    local vehicles = {}
+
+    if framework == 'qb' then
+        -- Use QBCore Shared Table
+        local QBCore = exports['qb-core']:GetCoreObject()
+        for model, data in pairs(QBCore.Shared.Vehicles) do
+            local category = data.category or "Uncategorized"
+            if not vehicles[category] then vehicles[category] = {} end
+            table.insert(vehicles[category], {
+                label = data.name or model,
+                model = model
+            })
+        end
+    elseif framework == 'esx' then
+        -- Query ESX Vehicles Table
+        local results = MySQL.query.await('SELECT name, model, category FROM vehicles')
+        if results then
+            for _, data in ipairs(results) do
+                local category = data.category or "Uncategorized"
+                if not vehicles[category] then vehicles[category] = {} end
+                table.insert(vehicles[category], {
+                    label = data.name or data.model,
+                    model = data.model
+                })
+            end
+        end
+    end
+
+    -- Sort categories and internal lists
+    for cat, list in pairs(vehicles) do
+        table.sort(list, function(a, b) return a.label < b.label end)
+    end
+
+    cb(vehicles)
+end)
