@@ -57,9 +57,9 @@ local function GenerateUniquePlate(basePlate)
     -- This function ensures 8 character max and uniqueness in database
     local plate = string.upper(basePlate):sub(1, 8)
     local framework = exports['DjonStNix-Bridge']:GetFramework()
-    local table = (framework == 'esx') and 'owned_vehicles' or 'player_vehicles'
+    local dbTable = (framework == 'esx') and 'owned_vehicles' or 'player_vehicles'
     
-    local exists = MySQL.query.await(('SELECT plate FROM %s WHERE plate = ? LIMIT 1'):format(table), { plate })
+    local exists = MySQL.query.await(('SELECT plate FROM %s WHERE plate = ? LIMIT 1'):format(dbTable), { plate })
     if not exists or #exists == 0 then 
         return plate 
     end
@@ -71,7 +71,7 @@ local function GenerateUniquePlate(basePlate)
         -- Truncate base plate to make room for random digits and space
         local newPlate = string.sub(plate, 1, trimLen) .. " " .. randomString
         
-        local check = MySQL.query.await(('SELECT plate FROM %s WHERE plate = ? LIMIT 1'):format(table), { newPlate })
+        local check = MySQL.query.await(('SELECT plate FROM %s WHERE plate = ? LIMIT 1'):format(dbTable), { newPlate })
         if not check or #check == 0 then 
             return newPlate 
         end

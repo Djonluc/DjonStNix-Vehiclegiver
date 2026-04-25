@@ -190,7 +190,7 @@ local function OpenCategoryMenu(targetId)
     Core.Functions.TriggerCallback('djonstnix-vehiclegiver:server:GetVehicleList', function(vehicles)
         print("[DjonStNix-Vehiclegiver] Received vehicle list from server")
         if not vehicles or next(vehicles) == nil then
-            Core.Notify(0, "No vehicles found in database/shared.", "error")
+            Core.Notify("No vehicles found in database.", "error")
             return
         end
 
