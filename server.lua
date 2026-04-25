@@ -30,7 +30,7 @@ RegisterCommand("gva", function(source, args)
 
     local targetId = tonumber(args[1])
     if not targetId then
-        Core.Notify(source, "Usage: /gvauth [ID]", "primary")
+        Core.Notify(source, "Usage: /gva [ID]", "primary")
         return
     end
 
