@@ -153,27 +153,48 @@ RegisterNetEvent('djonstnix-vehiclegiver:server:ConfirmSpawn', function(data)
     local framework = exports['DjonStNix-Bridge']:GetFramework()
     local success = false
     local targetIdentifier = Core.Player.GetIdentifier(targetId)
+    local targetName = GetPlayerName(targetId) or "Unknown Player"
 
     if framework == 'esx' then
+        -- Standard ESX Vehicle Properties blob
+        local vehicleProps = {
+            model = model,
+            plate = uniquePlate,
+            color1 = primaryColor,
+            color2 = secondaryColor,
+            engineHealth = 1000.0,
+            bodyHealth = 1000.0,
+            fuelLevel = 100.0
+        }
+
         -- ESX Format: owner, plate, vehicle (mods)
+        -- Attempting common columns (stored/state) for broader compatibility
         success = MySQL.insert.await([[
             INSERT INTO owned_vehicles (owner, plate, vehicle, type, stored)
             VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE vehicle = VALUES(vehicle)
         ]], {
             targetIdentifier,
             uniquePlate,
-            json.encode(modsData),
+            json.encode(vehicleProps),
             'car',
             1
         })
+
+        -- Fallback: If your ESX uses 'state' instead of 'stored', we try to update it
+        if success then
+            MySQL.update('UPDATE owned_vehicles SET state = 1 WHERE plate = ?', { uniquePlate })
+        end
     else
         -- QBCore Format: license, citizenid, vehicle, hash, mods, plate, garage, state
         local targetData = Core.Player.GetPlayerData(targetId)
+        local license = targetData and (targetData.license or Core.Player.GetIdentifier(targetId)) or "Unknown"
+        
         success = MySQL.insert.await([[
             INSERT INTO player_vehicles (license, citizenid, vehicle, hash, mods, plate, garage, state)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ]], {
-            targetData.license,
+            license,
             targetIdentifier,
             model,
             hash,
@@ -198,7 +219,7 @@ RegisterNetEvent('djonstnix-vehiclegiver:server:ConfirmSpawn', function(data)
         SetEntityDistanceCullingRadius(vehEntity, 1000.0)
 
         -- Notify admin of success
-        Core.Notify(src, ("Vehicle '%s' given to %s!"):format(model, GetPlayerName(targetId)), "success")
+        Core.Notify(src, ("Vehicle '%s' given to %s!"):format(model, targetName), "success")
 
         -- Fire FinalizeSpawn on the TARGET player's client, passing colors so vehicleData isn't needed
         TriggerClientEvent('djonstnix-vehiclegiver:client:FinalizeSpawn', targetId, netId, uniquePlate, primaryColor, secondaryColor)

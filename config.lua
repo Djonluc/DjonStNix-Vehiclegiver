@@ -20,6 +20,7 @@ Config.UseOxLib = true -- Set to true if you prefer ox_lib for UI, otherwise use
 -- This event is triggered on the client to give keys to the player
 -- QBCore: "vehiclekeys:client:SetOwner"
 -- ESX (Wasabi): "wasabi_carlock:giveKey"
+-- ESX (Okok): "okokVehicleLock:giveKeys"
 Config.GiveKeysEvent = "vehiclekeys:client:SetOwner" 
 
 -- Note: Vehicle list is now dynamically fetched from your database/shared vehicles!
